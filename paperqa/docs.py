@@ -35,8 +35,10 @@ class Docs:
 
     def __init__(
         self,
+        index_name: str,
         chunk_size_limit: int = 3000,
         llm: Optional[LLM] = None,
+        embeddings = None,
         summary_llm: Optional[LLM] = None,
     ) -> None:
         """Initialize the collection of documents.
@@ -48,12 +50,16 @@ class Docs:
             llm: The language model to use for answering questions. Default - OpenAI text-davinci-003.
             summary_llm: The language model to use for summarizing documents. If None, llm is used.
         """
+        self.index_name = index_name
         self.docs = dict()
         self.chunk_size_limit = chunk_size_limit
         self.keys = set()
         self._faiss_index = None
         if llm is None:
             llm = OpenAI(temperature=0.1)
+        if embeddings is None:
+            embeddings = OpenAIEmbeddings()
+        self.embeddings = embeddings
         if summary_llm is None:
             summary_llm = llm
         self.summary_chain = LLMChain(prompt=summary_prompt, llm=summary_llm)
@@ -66,6 +72,8 @@ class Docs:
         citation: str,
         key: Optional[str] = None,
         disable_check: bool = False,
+        parser = None,
+        prefix: str = "",
     ) -> None:
         """Add a document to the collection."""
         if path in self.docs:
@@ -94,7 +102,11 @@ class Docs:
         key += suffix
         self.keys.add(key)
 
-        texts, metadata = read_doc(path, citation, key)
+        texts, metadata = read_doc(path, citation, key, parser=parser)
+
+        # Add prefix (optinal)
+        texts = [prefix + text for text in texts]
+
         # loose check to see if document was loaded
         if not disable_check and not maybe_is_text("".join(texts)):
             raise ValueError(
@@ -105,20 +117,30 @@ class Docs:
         if self._faiss_index is not None:
             self._faiss_index.add_texts(texts, metadatas=metadata)
 
+
+    def set_qa_llm(self, llm: LLM) -> None:
+        """Set the language model to use for answering questions."""
+        self.qa_chain = LLMChain(prompt=qa_prompt, llm=llm)
+        self.edit_chain = LLMChain(prompt=edit_prompt, llm=llm)
+
+
+    def _state_name(self):
+        return "faiss_index/faiss_index_" + self.index_name
+
     # to pickle, we have to save the index as a file
     def __getstate__(self):
         if self._faiss_index is None:
             self._build_faiss_index()
         state = self.__dict__.copy()
-        state["_faiss_index"].save_local("faiss_index")
+        state["_faiss_index"].save_local(self._state_name())
         del state["_faiss_index"]
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-        self._faiss_index = FAISS.load_local("faiss_index", OpenAIEmbeddings())
+        self._faiss_index = FAISS.load_local(self._state_name(), self.embeddings)
 
-    def _build_faiss_index(self):
+    def _build_faiss_index(self, embeddings=None):
         if self._faiss_index is None:
             texts = reduce(
                 lambda x, y: x + y, [doc["texts"] for doc in self.docs.values()], []
@@ -127,7 +149,7 @@ class Docs:
                 lambda x, y: x + y, [doc["metadata"] for doc in self.docs.values()], []
             )
             self._faiss_index = FAISS.from_texts(
-                texts, OpenAIEmbeddings(), metadatas=metadatas
+                texts, self.embeddings, metadatas=metadatas
             )
 
     def get_evidence(self, question: str, k: int = 3, max_sources: int = 5):

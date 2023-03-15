@@ -46,8 +46,11 @@ def parse_txt(path, citation, key, chunk_chars=4000, overlap=50):
     return texts, [dict(citation=citation, dockey=key, key=key)] * len(texts)
 
 
-def read_doc(path, citation, key, chunk_chars=4000, overlap=50, disable_check=False):
+def read_doc(path, citation, key, chunk_chars=4000, overlap=50, disable_check=False, parser=None):
     """Parse a document into chunks."""
+    if parser is not None:
+        return parser(path, citation, key, chunk_chars=chunk_chars, overlap=overlap)
+
     if path.endswith(".pdf"):
         return parse_pdf(path, citation, key, chunk_chars, overlap)
     elif path.endswith(".txt"):

@@ -21,8 +21,11 @@ qa_prompt = prompts.PromptTemplate(
     "for the question below solely based on the provided context. "
     "If the context is insufficient, "
     'reply "I cannot answer". '
+    "The provided context includes information about what product it is refering to. "
+    "If you are asked about a particular product, use only the information "
+    "avaiable for that product and do not use information from other products. "
     "For each sentence in your answer, indicate which sources most support it "
-    "via valid citation markers at the end of sentences, like (Foo2012). "
+    "via valid citation markers at the end of sentences, like for example: (Foo2012). "
     "Answer in an unbiased, balanced, and scientific tone. "
     "Try to use the direct quotes, if present, from the context. "
     # "write a complete unbiased answer prefixed by \"Answer:\""
