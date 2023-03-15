@@ -218,7 +218,7 @@ class Docs:
         formatted_answer = f"Question: {query}\n\n{answer}\n"
         if len(bib) > 0:
             formatted_answer += f"\nReferences\n\n{bib_str}\n"
-        formatted_answer += f"\nTokens Used: {tokens} Cost: ${tokens/1000 * 0.02:.2f}"
+        #formatted_answer += f"\nTokens Used: {tokens} Cost: ${tokens/1000 * 0.02:.2f}"
         return Answer(
             answer=answer,
             question=query,
